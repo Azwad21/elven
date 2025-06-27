@@ -1,10 +1,7 @@
-#include <stdint.h>
-#include <wayland-util.h>
+#ifndef BAR_H
+#define BAR_H
 
-#ifndef INCLUDE_CLIENT_STATE
-#define INCLUDE_CLIENT_STATE
-
-struct Bar {
+struct elv_bar {
   struct wl_display *wl_display;
   struct wl_registry *wl_registry;
   struct wl_shm *wl_shm;
@@ -18,4 +15,4 @@ struct Bar {
   int monitor_height;
 };
 
-#endif // ! INCLUDE_CLIENT_STATE
+#endif BAR_H

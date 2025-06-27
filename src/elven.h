@@ -4,6 +4,6 @@
 #ifndef ELVEN_H
 #define ELVEN_H
 
-void callback(struct ClientState *state, struct RenderContext *render_context);
+void callback(struct Bar *state, struct RenderContext *render_context);
 
 #endif // !ELVEN_HEADERS

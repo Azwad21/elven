@@ -51,11 +51,10 @@ static void wl_buffer_release(void *data, struct wl_buffer *wl_buffer) {
 }
 
 static const struct wl_buffer_listener wl_buffer_listener = {
-    .release = wl_buffer_release,
+  .release = wl_buffer_release,
 };
 
-void create_buffer(struct ClientState *state,
-                   struct RenderContext *render_context) {
+void create_buffer(struct Bar *state, struct RenderContext *render_context) {
   render_context->wl_buffer = NULL;
 
   int stride = state->monitor_width * 4;
@@ -66,7 +65,7 @@ void create_buffer(struct ClientState *state,
     render_context->wl_buffer = NULL;
   }
   render_context->data =
-      mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
   if (render_context->data == MAP_FAILED) {
     // close(fd);
     render_context->wl_buffer = NULL;
@@ -101,8 +100,8 @@ void create_buffer(struct ClientState *state,
   struct wl_shm_pool *pool = wl_shm_create_pool(state->wl_shm, fd, size);
 
   render_context->wl_buffer = wl_shm_pool_create_buffer(
-      pool, 0, state->monitor_width, state->monitor_height, stride,
-      WL_SHM_FORMAT_ARGB8888);
+    pool, 0, state->monitor_width, state->monitor_height, stride,
+    WL_SHM_FORMAT_ARGB8888);
   wl_shm_pool_destroy(pool);
   close(fd);
   wl_buffer_add_listener(render_context->wl_buffer, &wl_buffer_listener, NULL);

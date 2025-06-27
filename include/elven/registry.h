@@ -2,6 +2,6 @@
 #ifndef INIT_HEADERS
 #define INIT_HEADERS
 
-void init_registry(struct ClientState *state);
+void init_registry(struct Bar *state);
 
 #endif

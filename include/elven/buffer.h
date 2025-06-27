@@ -6,7 +6,7 @@
 #define INIT_HEADERS
 
 int shm_get_fd(size_t size);
-void create_buffer(struct ClientState *state,
+void create_buffer(struct Bar *state,
                    struct RenderContext *render_context);
 
 #endif

@@ -5,6 +5,6 @@
 #ifndef ZWLR_LAYER_SHELL
 #define ZWLR_LAYER_SHELL
 
-void init_zwlr(struct ClientState *state, struct RenderContext *render_context);
+void init_zwlr(struct Bar *state, struct RenderContext *render_context);
 
 #endif

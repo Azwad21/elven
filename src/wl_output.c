@@ -58,7 +58,6 @@ static const struct wl_output_listener wl_output_listener = {
   .description = handle_desc,
 };
 
-void init_wl_output(struct ClientState *state,
-                    struct OutputContext *output_context) {
+void init_wl_output(struct Bar *state, struct OutputContext *output_context) {
   wl_output_add_listener(state->wl_output, &wl_output_listener, output_context);
 }

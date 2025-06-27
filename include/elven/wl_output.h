@@ -4,7 +4,7 @@
 #ifndef WL_OUTPUT_H
 #define WL_OUTPUT_H
 
-void init_wl_output(struct ClientState *state,
+void init_wl_output(struct Bar *state,
                     struct OutputContext *output_context);
 
 #endif
