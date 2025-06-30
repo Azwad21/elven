@@ -1,13 +1,15 @@
+#include <stdbool.h>
+
 #ifndef BAR_H
 #define BAR_H
 
 struct elv_bar {
-  struct wl_display *wl_display;
-  struct wl_registry *wl_registry;
-  struct wl_shm *wl_shm;
-  struct wl_compositor *wl_compositor;
-  struct wl_output *wl_output;
-  struct wl_surface *wl_surface;
+  struct wl_display *display;
+  struct wl_registry *registry;
+  struct wl_shm *shm;
+  struct wl_compositor *compositor;
+  struct wl_output *output;
+  struct wl_surface *surface;
   struct zwlr_layer_shell_v1 *zwlr_layer_shell;
   struct zwlr_layer_surface_v1 *zwlr_layer_surface;
   struct wl_array *outputs;
@@ -15,4 +17,7 @@ struct elv_bar {
   int monitor_height;
 };
 
-#endif BAR_H
+void bar_run(struct elv_bar *);
+bool bar_setup(struct elv_bar *);
+
+#endif
