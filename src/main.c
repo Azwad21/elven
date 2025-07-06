@@ -2,7 +2,6 @@
 #include "elven/registry.h"
 #include "elven/wl_output.h"
 #include "elven/zwlr_layer_shell.h"
-#include <cairo.h>
 #include <errno.h>
 #include <poll.h>
 #include <stdio.h>
@@ -15,11 +14,11 @@ int main(void) {
   struct elv_bar bar;
 
   if (!bar_setup(&bar)) {
-    perror("Failed to setup bar");
+    perror("Failed to setup bar\n");
     exit(EXIT_FAILURE);
   }
-  bar_run(&bar);
 
+  bar_run(&bar);
   // struct pollfd fds[1];
   // fds[0].fd = wl_display_get_fd(bar.wl_display);
   // fds[0].events = POLLIN;
