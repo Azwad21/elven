@@ -14,10 +14,15 @@ static int shm_get_fd(void) {
   int retries = 100;
   do {
     --retries;
-    char name[64];
-    snprintf(name, sizeof(name), "/elven-shm-%ld", time(NULL));
 
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    char name[64];
+    pid_t pid = getpid();
+    snprintf(name, sizeof(name), "/elven-shm-%ld-%d", ts.tv_nsec, pid);
+    printf("Name: %s\n", name);
     int fd = shm_open(name, O_RDWR | O_CREAT | O_EXCL, S_IRWXU);
+    printf("fd: %d\n", fd);
     if (fd >= 0) {
       shm_unlink(name);
       return fd;
@@ -27,30 +32,15 @@ static int shm_get_fd(void) {
   return -1;
 }
 
-int shm_get_fd_a(size_t size) {
-  int fd = shm_get_fd();
-  if (fd < 0) {
-    return -1;
-  }
-  int ret;
-  do {
-    ret = ftruncate(fd, size);
-  } while (ret < 0 && errno == EINTR);
-  if (ret < 0) {
-    close(fd);
-    return -1;
-  }
-  return fd;
-}
-
 static void handle_buffer_release(void *data, struct wl_buffer *buffer) {
+  // Deliberately left blank
 }
 
 static struct wl_buffer_listener buffer_listener = {
   .release = handle_buffer_release,
 };
 
-static int create_buffer(struct render_context *render_ctx, struct wl_shm *shm,
+static int create_buffer(struct pool_buffer *pool_buffer, struct wl_shm *shm,
   uint32_t width, uint32_t height) {
   int stride = width * 4;
   int size = stride * height;
@@ -60,7 +50,11 @@ static int create_buffer(struct render_context *render_ctx, struct wl_shm *shm,
     return 0;
   }
 
-  if (!ftruncate(fd, size)) {
+  int ret;
+  do {
+    ret = ftruncate(fd, size);
+  } while (ret < 0 && errno == EAGAIN);
+  if (ret < 0) {
     perror("On create_buffer: ftruncate");
     return 0;
   }
@@ -69,21 +63,21 @@ static int create_buffer(struct render_context *render_ctx, struct wl_shm *shm,
 
   struct wl_shm_pool *pool = wl_shm_create_pool(shm, fd, size);
 
-  render_ctx->buffer = wl_shm_pool_create_buffer(
+  pool_buffer->buffer = wl_shm_pool_create_buffer(
     pool, 0, width, height, stride, WL_SHM_FORMAT_ARGB8888);
   wl_shm_pool_destroy(pool);
   close(fd);
   wl_buffer_add_listener(
-    render_ctx->buffer, &buffer_listener, render_ctx->buffer);
+    pool_buffer->buffer, &buffer_listener, pool_buffer->buffer);
   return 1;
 }
 
-struct render_context *get_buffer(
+struct pool_buffer *get_buffer(
   struct wl_shm *shm, uint32_t width, uint32_t height) {
-  struct render_context *render_ctx = NULL;
-  if (!create_buffer(render_ctx, shm, width, height)) {
+  struct pool_buffer *pool_buffer;
+  if (!create_buffer(pool_buffer, shm, width, height)) {
     printf("Error: get_buffer");
     exit(EXIT_FAILURE);
   }
-  return render_ctx;
+  return pool_buffer;
 }
