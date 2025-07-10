@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <wayland-client-protocol.h>
 #include <stdint.h>
+#include "config.h"
 #include <wayland-util.h>
 
 #ifndef BAR_H
@@ -11,9 +12,10 @@ struct elv_bar {
   struct wl_registry *registry;
   struct wl_shm *shm;
   struct wl_compositor *compositor;
-  struct wl_output *output;
   struct zwlr_layer_shell_v1 *layer_shell;
   struct wl_list outputs; // struct elv_output[]
+  struct elv_bar_config *config;
+  bool running;
 };
 
 struct elv_output {
@@ -25,9 +27,12 @@ struct elv_output {
   uint32_t output_width, output_height;
   struct wl_list link;
   const char *name;
+
+  struct pool_buffer *pool_buffer;
 };
 
-void bar_run(struct elv_bar *);
-bool bar_setup(struct elv_bar *);
+void bar_run(struct elv_bar *bar);
+bool bar_setup(struct elv_bar *bar);
+void bar_destroy(struct elv_bar *bar);
 
 #endif

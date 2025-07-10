@@ -1,4 +1,5 @@
 #include "elven/bar.h"
+#include "elven/config.h"
 #include "elven/pool-buffer.h"
 #include "elven/render.h"
 #include "wlr_layer_shell_unstable_v1.h"
@@ -16,16 +17,19 @@ static void handle_layer_surface_configure(void *data,
   struct zwlr_layer_surface_v1 *zwlr_layer_surface_v1, uint32_t serial,
   uint32_t width, uint32_t height) {
   struct elv_output *output = data;
+  output->width = width;
+  output->height = height;
   printf("Width: %d\n", width);
   printf("Height: %d\n", height);
 
   zwlr_layer_surface_v1_ack_configure(zwlr_layer_surface_v1, serial);
 
-  struct pool_buffer *buffer = get_buffer(output->bar->shm, width, height);
+  output->pool_buffer = get_buffer(output->bar->shm, width, height);
   printf("Reached here layer_surface_configure \n");
-  wl_surface_attach(output->surface, buffer->buffer, 0, 0);
+
+  wl_surface_attach(output->surface, output->pool_buffer->buffer, 0, 0);
   wl_surface_commit(output->surface);
-  wl_surface_commit(output->surface);
+  render_frame(output);
 }
 
 static void handle_layer_surface_closed(
@@ -39,18 +43,20 @@ static const struct zwlr_layer_surface_v1_listener layer_surface_listener = {
 
 static void add_layer_frame(struct elv_output *output) {
   printf("Reached add_layer_frame\n");
+  struct elv_bar_config *config = output->bar->config;
   output->layer_surface = zwlr_layer_shell_v1_get_layer_surface(
     output->bar->layer_shell, output->surface, output->output,
     ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM, "elven_bar");
   zwlr_layer_surface_v1_add_listener(
     output->layer_surface, &layer_surface_listener, output);
-  zwlr_layer_surface_v1_set_size(output->layer_surface, 0, 10);
+  zwlr_layer_surface_v1_set_size(output->layer_surface, 0, config->bar_height);
   zwlr_layer_surface_v1_set_anchor(output->layer_surface,
     ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP | ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
       ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
-  wl_surface_commit(output->surface);
   zwlr_layer_surface_v1_set_margin(output->layer_surface, 0, 0, 0, 0);
-  zwlr_layer_surface_v1_set_exclusive_zone(output->layer_surface, 10);
+  zwlr_layer_surface_v1_set_exclusive_zone(
+    output->layer_surface, config->bar_height);
+  wl_surface_commit(output->surface);
 }
 
 static void handle_output_mode(void *data, struct wl_output *wl_output,
@@ -111,15 +117,11 @@ static void handle_registry_global(void *data, struct wl_registry *wl_registry,
     bar->compositor =
       wl_registry_bind(wl_registry, name, &wl_compositor_interface, version);
   } else if (strcmp(interface, wl_output_interface.name) == 0) {
-    struct elv_output *elv_output = malloc(sizeof(struct elv_output));
+    struct elv_output *elv_output = malloc(sizeof *elv_output);
     elv_output->output =
       wl_registry_bind(wl_registry, name, &wl_output_interface, 4);
     elv_output->bar = bar;
     wl_output_add_listener(elv_output->output, &output_listener, elv_output);
-    if (!bar->outputs.next) {
-      wl_list_init(&bar->outputs);
-    }
-
     wl_list_insert(&bar->outputs, &elv_output->link);
   } else if (strcmp(interface, zwlr_layer_shell_v1_interface.name) == 0) {
     bar->layer_shell = wl_registry_bind(
@@ -129,7 +131,7 @@ static void handle_registry_global(void *data, struct wl_registry *wl_registry,
 
 static void handle_registry_global_remove(
   void *data, struct wl_registry *wl_registry, uint32_t name) {
-  wl_registry_destroy(wl_registry);
+  // wl_registry_destroy(wl_registry);
 }
 
 static const struct wl_registry_listener registry_listener = {
@@ -146,18 +148,24 @@ bool bar_setup(struct elv_bar *bar) {
     return false;
   }
 
+  wl_list_init(&bar->outputs);
+
   bar->registry = wl_display_get_registry(bar->display);
   wl_registry_add_listener(bar->registry, &registry_listener, bar);
   wl_display_roundtrip(bar->display);
+
+  // Config setup
+  bar->config = init_config();
   return true;
 };
 
 void bar_run(struct elv_bar *bar) {
+
   struct pollfd pfds[1];
   pfds[0].fd = wl_display_get_fd(bar->display);
   pfds[0].events = POLLIN;
 
-  while (1) {
+  while (bar->running) {
     // printf("Loop running\n");
     wl_display_flush(bar->display);
 
@@ -181,3 +189,30 @@ void bar_run(struct elv_bar *bar) {
     // }
   }
 };
+
+static void output_destroy(struct elv_bar *bar) {
+  struct elv_output *tmp;
+  wl_list_for_each(tmp, &bar->outputs, link) {
+    zwlr_layer_surface_v1_destroy(tmp->layer_surface);
+    wl_surface_destroy(tmp->surface);
+    wl_output_destroy(tmp->output);
+    destroy_buffer(tmp->pool_buffer);
+    wl_list_remove(&tmp->link);
+    free(tmp);
+    tmp = NULL;
+  }
+}
+
+void bar_destroy(struct elv_bar *bar) {
+  struct elv_output *tmp;
+  wl_list_for_each(tmp, &bar->outputs, link) {
+    wl_output_destroy(tmp->output);
+    destroy_buffer(tmp->pool_buffer);
+    wl_list_remove(&tmp->link);
+    free(tmp);
+    tmp = NULL;
+  }
+  wl_display_disconnect(bar->display);
+}
+
+// bar_destroy: also free bar->outputs

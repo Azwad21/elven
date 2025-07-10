@@ -5,7 +5,10 @@
 
 # Compiler and flags
 CC := gcc
-CFLAGS := -Wall -Wextra -Iinclude -Iprotocols `pkg-config cairo --cflags`
+# CFLAGS := -Wall -Wextra -Iinclude -Iprotocols `pkg-config cairo --cflags` -g
+# LDFLAGS := -lwayland-client -lrt `pkg-config cairo --libs`
+
+CFLAGS := -Wall -Wextra -Iinclude -Iprotocols  -g -O0 -fno-omit-frame-pointer `pkg-config cairo --cflags`
 LDFLAGS := -lwayland-client -lrt `pkg-config cairo --libs`
 
 # Debugging
@@ -38,7 +41,7 @@ OBJS := $(patsubst $(PROTOCOLS_DIR)/%.c, $(OBJ_DIR_PROTOCOLS)/%.o, $(WAYLAND_SRC
 				$(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR_SRC)/%.o, $(LIB_SRCS) $(APP_SRCS))
 
 # Phony targets
-.PHONY: all default build-gen build-headers build-soruces clean
+.PHONY: all default build-gen build-headers build-sources clean
 
 # Default target
 default: all

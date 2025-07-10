@@ -20,9 +20,9 @@ static int shm_get_fd(void) {
     char name[64];
     pid_t pid = getpid();
     snprintf(name, sizeof(name), "/elven-shm-%ld-%d", ts.tv_nsec, pid);
-    printf("Name: %s\n", name);
+
     int fd = shm_open(name, O_RDWR | O_CREAT | O_EXCL, S_IRWXU);
-    printf("fd: %d\n", fd);
+
     if (fd >= 0) {
       shm_unlink(name);
       return fd;
@@ -33,7 +33,9 @@ static int shm_get_fd(void) {
 }
 
 static void handle_buffer_release(void *data, struct wl_buffer *buffer) {
-  // Deliberately left blank
+  // munmap the pool data
+
+  printf("Buffer release called\n");
 }
 
 static struct wl_buffer_listener buffer_listener = {
@@ -42,8 +44,10 @@ static struct wl_buffer_listener buffer_listener = {
 
 static int create_buffer(struct pool_buffer *pool_buffer, struct wl_shm *shm,
   uint32_t width, uint32_t height) {
-  int stride = width * 4;
-  int size = stride * height;
+  pool_buffer->width = width;
+  pool_buffer->height = height;
+  pool_buffer->stride = width * 4;
+  int size = pool_buffer->stride * height;
 
   int fd = shm_get_fd();
   if (fd < 0) {
@@ -54,30 +58,41 @@ static int create_buffer(struct pool_buffer *pool_buffer, struct wl_shm *shm,
   do {
     ret = ftruncate(fd, size);
   } while (ret < 0 && errno == EAGAIN);
+
   if (ret < 0) {
-    perror("On create_buffer: ftruncate");
+    perror("On creatt_buffer: ftruncate");
     return 0;
   }
 
-  void *data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  pool_buffer->pool_data =
+    mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
   struct wl_shm_pool *pool = wl_shm_create_pool(shm, fd, size);
 
   pool_buffer->buffer = wl_shm_pool_create_buffer(
-    pool, 0, width, height, stride, WL_SHM_FORMAT_ARGB8888);
+    pool, 0, width, height, pool_buffer->stride, WL_SHM_FORMAT_ARGB8888);
   wl_shm_pool_destroy(pool);
   close(fd);
-  wl_buffer_add_listener(
-    pool_buffer->buffer, &buffer_listener, pool_buffer->buffer);
+  wl_buffer_add_listener(pool_buffer->buffer, &buffer_listener, pool_buffer);
   return 1;
 }
 
 struct pool_buffer *get_buffer(
   struct wl_shm *shm, uint32_t width, uint32_t height) {
-  struct pool_buffer *pool_buffer;
+  struct pool_buffer *pool_buffer = malloc(sizeof *pool_buffer);
   if (!create_buffer(pool_buffer, shm, width, height)) {
     printf("Error: get_buffer");
     exit(EXIT_FAILURE);
   }
   return pool_buffer;
+}
+
+void destroy_buffer(struct pool_buffer *pool_buffer) {
+
+  if (pool_buffer->buffer) {
+    wl_buffer_destroy(pool_buffer->buffer);
+  }
+  munmap(pool_buffer->pool_data, pool_buffer->stride * pool_buffer->height);
+  free(pool_buffer);
+  pool_buffer = NULL;
 }
