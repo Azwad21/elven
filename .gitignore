@@ -2,3 +2,4 @@
 build/
 protocols/
 test/
+compile_commands.json
