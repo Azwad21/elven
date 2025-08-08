@@ -1,4 +1,4 @@
-#include "elven/pool-buffer.h"
+#include "pool-buffer.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -34,6 +34,8 @@ static int shm_get_fd(void) {
 
 static void handle_buffer_release(void *data, struct wl_buffer *buffer) {
   // munmap the pool data
+  struct pool_buffer *pool_buffer = data;
+  pool_buffer->busy = false;
 
   printf("Buffer release called\n");
 }
@@ -47,6 +49,7 @@ static int create_buffer(struct pool_buffer *pool_buffer, struct wl_shm *shm,
   pool_buffer->width = width;
   pool_buffer->height = height;
   pool_buffer->stride = width * 4;
+  pool_buffer->busy = false;
   int size = pool_buffer->stride * height;
 
   int fd = shm_get_fd();

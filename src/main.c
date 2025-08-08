@@ -1,7 +1,4 @@
-#include "elven/bar.h"
-#include "elven/registry.h"
-#include "elven/wl_output.h"
-#include "elven/zwlr_layer_shell.h"
+#include "bar.h"
 #include <errno.h>
 #include <poll.h>
 #include <signal.h>
@@ -28,23 +25,11 @@ int main(void) {
     exit(EXIT_FAILURE);
   }
 
+  // printf("Printing fd capacity: %d\n", bar.eventloop->fd_capacity);
+
   bar.running = true;
   bar_run(&bar);
-  bar_destroy(&bar);
-  // struct pollfd fds[1];
-  // fds[0].fd = wl_display_get_fd(bar.wl_display);
-  // fds[0].events = POLLIN;
-  //
-  // while (1) {
-  //   wl_display_flush(bar.wl_display);
-  //
-  //   int ret = poll(fds, 1, -1);
-  //   if (ret > 0) {
-  //     if (fds[0].revents & POLLIN) {
-  //       wl_display_dispatch(bar.wl_display);
-  //     }
-  //   }
-  // }
+  // bar_destroy(&bar);
 
   return 0;
 }

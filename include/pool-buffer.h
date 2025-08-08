@@ -1,4 +1,5 @@
 #include <wayland-client-protocol.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #ifndef POOL_BUFFER_H
@@ -7,7 +8,8 @@
 struct pool_buffer {
   struct wl_buffer *buffer;
   void *pool_data;
-  uint32_t width, height, stride;
+  uint32_t width, height, stride, size;
+  bool busy;
 };
 
 struct pool_buffer *get_buffer(struct wl_shm *shm, uint32_t width, uint32_t height);

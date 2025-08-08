@@ -1,4 +1,4 @@
-#include "elven/config.h"
+#include "config.h"
 #include <stdlib.h>
 
 struct elv_bar_config *init_config() {

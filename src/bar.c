@@ -1,9 +1,11 @@
-#include "elven/bar.h"
-#include "elven/config.h"
-#include "elven/pool-buffer.h"
-#include "elven/render.h"
+#include "bar.h"
+#include "config.h"
+#include "loop.h"
+#include "pool-buffer.h"
+#include "render.h"
 #include "wlr_layer_shell_unstable_v1.h"
 #include <assert.h>
+#include <errno.h>
 #include <poll.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -24,10 +26,15 @@ static void handle_layer_surface_configure(void *data,
 
   zwlr_layer_surface_v1_ack_configure(zwlr_layer_surface_v1, serial);
 
-  output->pool_buffer = get_buffer(output->bar->shm, width, height);
-  printf("Reached here layer_surface_configure \n");
+  int pool_buff_len =
+    sizeof(output->pool_buffers) / sizeof(struct pool_buffer *);
 
-  wl_surface_attach(output->surface, output->pool_buffer->buffer, 0, 0);
+  for (int i = 0; i < pool_buff_len; i++) {
+    output->pool_buffers[i] = get_buffer(output->bar->shm, width, height);
+  }
+  output->current_buffer = output->pool_buffers[0];
+
+  wl_surface_attach(output->surface, output->current_buffer->buffer, 0, 0);
   wl_surface_commit(output->surface);
   render_frame(output);
 }
@@ -139,8 +146,23 @@ static const struct wl_registry_listener registry_listener = {
   .global_remove = handle_registry_global_remove,
 };
 
+static void display(int fd, short flags, void *data) {
+  printf("Display being called\n");
+  struct elv_bar *bar = data;
+  // wl_display_flush(bar->display);
+  //
+  // if (wl_display_prepare_read(bar->display) == 0) {
+  //   wl_display_read_events(bar->display);
+  //   wl_display_dispatch_pending(bar->display);
+  // } else {
+  //   wl_display_dispatch_pending(bar->display);
+  // }
+  wl_display_dispatch(bar->display);
+}
+
 bool bar_setup(struct elv_bar *bar) {
   bar->display = wl_display_connect(NULL);
+  bar->display_fd = wl_display_get_fd(bar->display);
   assert(bar->display != NULL);
 
   if (!bar->display) {
@@ -156,37 +178,40 @@ bool bar_setup(struct elv_bar *bar) {
 
   // Config setup
   bar->config = init_config();
+
+  // Event loop setup
+  bar->eventloop = loop_create();
   return true;
 };
 
 void bar_run(struct elv_bar *bar) {
+  // printf("Printing fd capacity: %d\n", bar->eventloop->fd_capacity);
+  loop_add_fd(bar->eventloop, bar->display_fd, POLLIN, bar, display);
 
-  struct pollfd pfds[1];
-  pfds[0].fd = wl_display_get_fd(bar->display);
-  pfds[0].events = POLLIN;
+  // struct pollfd pfds[1];
+  // pfds[0].fd = wl_display_get_fd(bar->display);
+  // pfds[0].events = POLLIN;
 
   while (bar->running) {
     // printf("Loop running\n");
-    wl_display_flush(bar->display);
-
-    if (wl_display_prepare_read(bar->display) == 0) {
-
-      if (poll(pfds, 1, 15) > 0) {
-        wl_display_read_events(bar->display);
-      }
-
-      wl_display_dispatch_pending(bar->display);
-
-    } else {
-      wl_display_dispatch_pending(bar->display);
-    }
-
-    // if (bar->outputs.next) {
-    //   struct elv_output *elv_output;
-    //   wl_list_for_each(elv_output, &bar->outputs, link) {
-    //     printf("%s\n", elv_output->name);
+    // wl_display_flush(bar->display);
+    //
+    // if (wl_display_prepare_read(bar->display) == 0) {
+    //
+    //   if (poll(pfds, 1, 15) > 0) {
+    //     wl_display_read_events(bar->display);
     //   }
+    //
+    //   wl_display_dispatch_pending(bar->display);
+    //
+    // } else {
+    //   wl_display_dispatch_pending(bar->display);
     // }
+
+    if (wl_display_flush(bar->display) == -1 && errno == EAGAIN) {
+      break;
+    }
+    loop_poll(bar->eventloop);
   }
 };
 
@@ -196,7 +221,7 @@ static void output_destroy(struct elv_bar *bar) {
     zwlr_layer_surface_v1_destroy(tmp->layer_surface);
     wl_surface_destroy(tmp->surface);
     wl_output_destroy(tmp->output);
-    destroy_buffer(tmp->pool_buffer);
+    // destroy_buffer(tmp->pool_buffers);
     wl_list_remove(&tmp->link);
     free(tmp);
     tmp = NULL;
@@ -207,7 +232,7 @@ void bar_destroy(struct elv_bar *bar) {
   struct elv_output *tmp;
   wl_list_for_each(tmp, &bar->outputs, link) {
     wl_output_destroy(tmp->output);
-    destroy_buffer(tmp->pool_buffer);
+    // destroy_buffer(tmp->pool_buffers);
     wl_list_remove(&tmp->link);
     free(tmp);
     tmp = NULL;

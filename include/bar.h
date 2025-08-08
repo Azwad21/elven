@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include "config.h"
 #include <wayland-util.h>
+#include "loop.h"
 
 #ifndef BAR_H
 #define BAR_H
@@ -15,6 +16,8 @@ struct elv_bar {
   struct zwlr_layer_shell_v1 *layer_shell;
   struct wl_list outputs; // struct elv_output[]
   struct elv_bar_config *config;
+  struct loop *eventloop;
+  int display_fd;
   bool running;
 };
 
@@ -28,7 +31,8 @@ struct elv_output {
   struct wl_list link;
   const char *name;
 
-  struct pool_buffer *pool_buffer;
+  struct pool_buffer *current_buffer;
+  struct pool_buffer *pool_buffers[3];
 };
 
 void bar_run(struct elv_bar *bar);

@@ -8,8 +8,8 @@ CC := gcc
 # CFLAGS := -Wall -Wextra -Iinclude -Iprotocols `pkg-config cairo --cflags` -g
 # LDFLAGS := -lwayland-client -lrt `pkg-config cairo --libs`
 
-CFLAGS := -Wall -Wextra -Iinclude -Iprotocols  -g -O0 -fno-omit-frame-pointer `pkg-config cairo --cflags`
-LDFLAGS := -lwayland-client -lrt `pkg-config cairo --libs`
+CFLAGS := -Wall -Wextra -Iinclude -Iprotocols  -g -O0 -fno-omit-frame-pointer `pkg-config pangocairo --cflags`
+LDFLAGS := -lm -lwayland-client -lrt `pkg-config pangocairo --libs`
 
 # Debugging
 ifeq ($(DEBUG), 1)
@@ -21,6 +21,7 @@ SRC_DIR := src
 PROTOCOLS_DIR := protocols
 BUILD_DIR := build
 OBJ_DIR := $(BUILD_DIR)/obj
+MODULES_DIR := $(SRC_DIR)/modules
 
 # Source files
 WAYLAND_XMLS := \
@@ -32,13 +33,16 @@ WAYLAND_SRCS := $(patsubst %, $(PROTOCOLS_DIR)/%.c, $(subst -,_,$(WAYLAND_XMLS_N
 LIB_SRCS := $(filter-out src/main.c, $(wildcard $(SRC_DIR)/*.c))
 APP_SRCS := src/main.c
 SRC_SRCS := $(APP_SRCS) $(LIB_SRCS) $(WAYLAND_SRCS)
+MODULES_SRCS := $(wildcard $(MODULES_DIR)/*/*.c) $(wildcard $(MODULES_DIR)/*.c)
 
 OBJ_DIR_SRC := $(OBJ_DIR)/src
 OBJ_DIR_PROTOCOLS := $(OBJ_DIR)/protocols
+OBJ_DIR_MODULES := $(OBJ_DIR)/modules
 
 # Objects
 OBJS := $(patsubst $(PROTOCOLS_DIR)/%.c, $(OBJ_DIR_PROTOCOLS)/%.o, $(WAYLAND_SRCS)) \
-				$(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR_SRC)/%.o, $(LIB_SRCS) $(APP_SRCS))
+				$(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR_SRC)/%.o, $(LIB_SRCS) $(APP_SRCS)) \
+				$(patsubst $(MODULES_DIR)/%.c, $(OBJ_DIR_MODULES)/%.o, $(MODULES_SRCS))
 
 # Phony targets
 .PHONY: all default build-gen build-headers build-sources clean
@@ -61,6 +65,10 @@ $(OBJ_DIR_SRC)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR) $(OBJ_DIR_SRC)
 $(OBJ_DIR_PROTOCOLS)/%.o: $(PROTOCOLS_DIR)/%.c | $(OBJ_DIR) $(OBJ_DIR_PROTOCOLS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
+$(OBJ_DIR_MODULES)/%.o: $(MODULES_DIR)/%.c | $(OBJ_DIR) $(OBJ_DIR_MODULES)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $< -o $@
+
 # Generated sources from Wayland
 build-gen: build-sources build-headers
 
@@ -78,7 +86,7 @@ build-headers:
 $(BUILD_DIR) $(OBJ_DIR) $(PROTOCOLS_DIR):
 	@mkdir -p $@
 
-$(OBJ_DIR_SRC) $(OBJ_DIR_PROTOCOLS):
+$(OBJ_DIR_SRC) $(OBJ_DIR_PROTOCOLS) $(OBJ_DIR_MODULES):
 	@mkdir -p $@
 
 # Clean up
